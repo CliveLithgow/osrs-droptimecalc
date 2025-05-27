@@ -12,35 +12,40 @@ document.getElementById("dropForm").addEventListener("submit", function (e) {
   }
 
   const lines = itemsInput.split("\n");
-  let totalExpectedKills = 0;
+  let totalHours = 0;
   let output = `<h2>Results for ${bossName}</h2><ul>`;
 
   lines.forEach(line => {
-    const [itemName, dropRateStr] = line.split(",");
-    if (!itemName || !dropRateStr) return;
+    const [itemNameRaw, dropRateStrRaw] = line.split(",");
+    if (!itemNameRaw || !dropRateStrRaw) return;
 
-    const dropRateParts = dropRateStr.split("/");
-    const numerator = parseFloat(dropRateParts[0]);
-    const denominator = parseFloat(dropRateParts[1]);
+    const itemName = itemNameRaw.trim();
+    const dropRateStr = dropRateStrRaw.trim();
 
-    let dropRate = denominator;
-    if (!isNaN(numerator) && !isNaN(denominator)) {
-      dropRate = denominator / numerator;
-    } else if (!isNaN(parseFloat(dropRateStr))) {
-      dropRate = parseFloat(dropRateStr);
+    let killsPerDrop = NaN;
+
+    if (dropRateStr.includes("/")) {
+      const [num, denom] = dropRateStr.split("/").map(Number);
+      if (!isNaN(num) && !isNaN(denom) && denom !== 0) {
+        killsPerDrop = denom / num;
+      }
+    } else {
+      const parsed = parseFloat(dropRateStr);
+      if (!isNaN(parsed) && parsed > 0) {
+        killsPerDrop = parsed;
+      }
     }
 
-    const expectedKills = dropRate;
-    const expectedHours = expectedKills / killsPerHour;
-    totalExpectedKills += expectedKills;
+    if (isNaN(killsPerDrop) || killsPerDrop <= 0) return;
 
-    output += `<li><strong>${itemName.trim()}</strong>: 
-      ~${expectedKills.toFixed(1)} kills 
-      (~${expectedHours.toFixed(2)} hours)</li>`;
+    const expectedKills = killsPerDrop;
+    const expectedHours = expectedKills / killsPerHour;
+    totalHours += expectedHours;
+
+    output += `<li><strong>${itemName}</strong>: ~${expectedKills.toFixed(1)} kills (~${expectedHours.toFixed(2)} hours)</li>`;
   });
 
-  const totalHours = totalExpectedKills / killsPerHour;
-  output += `</ul><p><strong>Total Estimated Time:</strong> ~${totalExpectedKills.toFixed(1)} kills (~${totalHours.toFixed(2)} hours)</p>`;
-
+  output += `</ul><p><strong>Total Estimated Time to Get All Drops:</strong> ~${(totalHours * 1).toFixed(2)} hours</p>`;
   resultsDiv.innerHTML = output;
 });
+
