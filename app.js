@@ -51,11 +51,8 @@ document.getElementById("dropForm").addEventListener("submit", function (e) {
   }
 
   // ✅ CALCULATE expected kills using generalized coupon collector logic
-  // Reference: https://math.stackexchange.com/questions/104113
   let expectedKills = 0;
   let remaining = dropRates.length;
-
-  // Use harmonic-like approximation
   const used = new Set();
 
   while (remaining > 0) {
@@ -70,7 +67,7 @@ document.getElementById("dropForm").addEventListener("submit", function (e) {
 
     expectedKills += 1 / sum;
 
-    // Simulate that one new item was obtained on average
+    // Pick the best uncollected item as if it dropped
     let bestProb = 0;
     let bestIndex = -1;
 
@@ -87,4 +84,20 @@ document.getElementById("dropForm").addEventListener("submit", function (e) {
 
   const expectedHours = expectedKills / killsPerHour;
 
-  // ✅ Probability of finishing all drops in E[X] ki
+  // ✅ Probability of finishing all drops in expectedKills
+  let probAllWithinExpected = 1;
+  dropRates.forEach(p => {
+    probAllWithinExpected *= (1 - Math.exp(-p * expectedKills));
+  });
+
+  const percentageChance = (probAllWithinExpected * 100).toFixed(1);
+
+  // ✅ Final output
+  output += `
+    <p><strong>Estimated Kills to Complete All Drops:</strong> ~${expectedKills.toFixed(1)} kills</p>
+    <p><strong>Estimated Time:</strong> ~${expectedHours.toFixed(2)} hours</p>
+    <p><strong>Chance to Finish All Drops Within This Time:</strong> ~${percentageChance}%</p>
+  `;
+
+  resultsDiv.innerHTML = output;
+});
