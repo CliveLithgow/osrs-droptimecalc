@@ -12,7 +12,7 @@ document.getElementById("dropForm").addEventListener("submit", function (e) {
   }
 
   const lines = itemsInput.split("\n");
-  let totalHours = 0;
+  const dropRates = []; // store drop rates as probabilities
   let output = `<h2>Results for ${bossName}</h2><ul>`;
 
   lines.forEach(line => {
@@ -22,30 +22,69 @@ document.getElementById("dropForm").addEventListener("submit", function (e) {
     const itemName = itemNameRaw.trim();
     const dropRateStr = dropRateStrRaw.trim();
 
-    let killsPerDrop = NaN;
+    let dropRate = NaN;
 
     if (dropRateStr.includes("/")) {
       const [num, denom] = dropRateStr.split("/").map(Number);
       if (!isNaN(num) && !isNaN(denom) && denom !== 0) {
-        killsPerDrop = denom / num;
+        dropRate = num / denom;
       }
     } else {
       const parsed = parseFloat(dropRateStr);
       if (!isNaN(parsed) && parsed > 0) {
-        killsPerDrop = parsed;
+        dropRate = 1 / parsed;
       }
     }
 
-    if (isNaN(killsPerDrop) || killsPerDrop <= 0) return;
+    if (isNaN(dropRate) || dropRate <= 0 || dropRate >= 1) return;
 
-    const expectedKills = killsPerDrop;
-    const expectedHours = expectedKills / killsPerHour;
-    totalHours += expectedHours;
+    dropRates.push(dropRate);
 
-    output += `<li><strong>${itemName}</strong>: ~${expectedKills.toFixed(1)} kills (~${expectedHours.toFixed(2)} hours)</li>`;
+    output += `<li><strong>${itemName}</strong>: 1 in ${(1 / dropRate).toFixed(1)} chance per kill</li>`;
   });
 
-  output += `</ul><p><strong>Total Estimated Time to Get All Drops:</strong> ~${(totalHours * 1).toFixed(2)} hours</p>`;
-  resultsDiv.innerHTML = output;
-});
+  output += "</ul>";
 
+  if (dropRates.length === 0) {
+    resultsDiv.innerHTML = "<p>Please enter valid item drop rates.</p>";
+    return;
+  }
+
+  // ✅ CALCULATE expected kills using generalized coupon collector logic
+  // Reference: https://math.stackexchange.com/questions/104113
+  let expectedKills = 0;
+  let remaining = dropRates.length;
+
+  // Use harmonic-like approximation
+  const used = new Set();
+
+  while (remaining > 0) {
+    let sum = 0;
+    dropRates.forEach((p, i) => {
+      if (!used.has(i)) {
+        sum += p;
+      }
+    });
+
+    if (sum === 0) break;
+
+    expectedKills += 1 / sum;
+
+    // Simulate that one new item was obtained on average
+    let bestProb = 0;
+    let bestIndex = -1;
+
+    dropRates.forEach((p, i) => {
+      if (!used.has(i) && p > bestProb) {
+        bestProb = p;
+        bestIndex = i;
+      }
+    });
+
+    used.add(bestIndex);
+    remaining--;
+  }
+
+  const expectedHours = expectedKills / killsPerHour;
+
+  // ✅ Probability of finishing all drops in E[X] ki
